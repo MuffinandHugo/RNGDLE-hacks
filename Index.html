@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CYBER-RNG // NUMBER ANALYZER</title>
+  <style>
+    body {
+      background-color: #09090b;
+      color: #ff6b00;
+      font-family: 'Courier New', Courier, monospace;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 750px;
+      margin: 0 auto;
+    }
+    header {
+      border: 2px solid #ff6b00;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 0 15px rgba(255, 107, 0, 0.3);
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px #ff6b00;
+    }
+    .panel {
+      border: 1px solid #ff6b00;
+      background: #120d0a;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 4px;
+    }
+    .big-number {
+      font-size: 48px;
+      font-weight: bold;
+      text-align: center;
+      margin: 15px 0;
+      color: #ffffff;
+      text-shadow: 0 0 12px #ff6b00;
+    }
+    .btn {
+      background: #ff6b00;
+      color: #09090b;
+      border: none;
+      padding: 12px 24px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      margin: 5px;
+      border-radius: 3px;
+    }
+    .btn:hover { background: #ff8c38; }
+    .btn-outline {
+      background: transparent;
+      color: #ff6b00;
+      border: 1px solid #ff6b00;
+    }
+    .btn-outline:hover {
+      background: #ff6b00;
+      color: #09090b;
+    }
+    .badge {
+      display: inline-block;
+      padding: 6px 12px;
+      margin: 5px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    .common { border: 1px solid #a3a3a3; color: #a3a3a3; }
+    .rare { border: 1px solid #3b82f6; color: #60a5fa; background: rgba(59, 130, 246, 0.1); }
+    .epic { border: 1px solid #a855f7; color: #c084fc; background: rgba(168, 85, 247, 0.15); }
+    .mythic { border: 1px solid #eab308; color: #fde047; background: rgba(234, 179, 8, 0.2); box-shadow: 0 0 10px rgba(234, 179, 8, 0.4); }
+    .sandbox-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    input[type="range"] { width: 100%; accent-color: #ff6b00; }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>[ CYBER-RNG // PATTERN ANALYZER ]</h1>
+      <p>TOTAL ENTROPY SCORE: <strong id="totalScore">0</strong> | ROLLS: <strong id="rollCount">0</strong></p>
+    </header>
+
+    <!-- MAIN ROLL PANEL -->
+    <div class="panel" style="text-align: center;">
+      <div>GENERATED INTEGER (0 - 1,000,000)</div>
+      <div class="big-number" id="displayNumber">------</div>
+      <button class="btn" onclick="generateRoll()">GENERATE NUMBER</button>
+      <div id="badgeContainer" style="margin-top: 20px;">
+        <span style="color: #888;">> Awaiting number generation...</span>
+      </div>
+    </div>
+
+    <!-- SANDBOX / LUCK CONTROL PANEL FOR VISITORS -->
+    <div class="panel">
+      <h3 style="margin-top: 0; border-bottom: 1px dashed #ff6b00; padding-bottom: 8px;">
+        // SANDBOX & LUCK OVERRIDES
+      </h3>
+      <p><strong>Luck Multiplier:</strong> <span id="luckLabel">1</span>x (Increases chance of rare patterns)</p>
+      <input type="range" id="luckSlider" min="1" max="50" value="1" oninput="luckLabel.textContent = this.value">
+      
+      <p style="margin-top: 15px;"><strong>Test Specific Pattern Generators:</strong></p>
+      <div class="sandbox-grid">
+        <button class="btn btn-outline" onclick="forcePattern('palindrome')">Test Palindrome</button>
+        <button class="btn btn-outline" onclick="forcePattern('repdigit')">Test Repeating Digits</button>
+        <button class="btn btn-outline" onclick="forcePattern('lucky7')">Test Triple 7s</button>
+        <button class="btn btn-outline" onclick="forcePattern('prime')">Test Prime Number</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let score = 0;
+    let rolls = 0;
+
+    function isPrime(n) {
+      if (n < 2) return false;
+      for (let i = 2; i <= Math.sqrt(n); i++) {
+        if (n % i === 0) return false;
+      }
+      return true;
+    }
+
+    function generateRoll(customNum = null) {
+      const luck = Number(document.getElementById("luckSlider").value);
+      let num = customNum;
+
+      // Apply luck by rolling multiple candidates and picking the highest-scoring one
+      if (num === null) {
+        let bestCandidate = Math.floor(Math.random() * 1000001);
+        let bestScore = analyzeNumber(bestCandidate).points;
+
+        for (let i = 1; i < luck; i++) {
+          let candidate = Math.floor(Math.random() * 1000001);
+          let candidateScore = analyzeNumber(candidate).points;
+          if (candidateScore > bestScore) {
+            bestCandidate = candidate;
+            bestScore = candidateScore;
+          }
+        }
+        num = bestCandidate;
+      }
+
+      rolls++;
+      const analysis = analyzeNumber(num);
+      score += analysis.points;
+
+      document.getElementById("displayNumber").textContent = num.toLocaleString();
+      document.getElementById("totalScore").textContent = score.toLocaleString();
+      document.getElementById("rollCount").textContent = rolls;
+
+      const container = document.getElementById("badgeContainer");
+      if (analysis.badges.length === 0) {
+        container.innerHTML = `<span class="badge common">STANDARD INTEGER (+10 PTS)</span>`;
+      } else {
+        container.innerHTML = analysis.badges.map(b => 
+          `<span class="badge ${b.rarity}">${b.name} (+${b.pts} PTS)</span>`
+        ).join("");
+      }
+    }
+
+    function analyzeNumber(num) {
+      const str = num.toString();
+      const badges = [];
+      let points = 10;
+
+      // 1. Check Repeating Digits (e.g., 777777, 11111)
+      if (str.length >= 3 && /^(\d)\1+$/.test(str)) {
+        badges.push({ name: "MYTHIC // ALL IDENTICAL DIGITS", rarity: "mythic", pts: 5000 });
+        points += 5000;
+      }
+
+      // 2. Check Palindrome (reads same forwards & backwards)
+      if (str.length >= 3 && str === str.split("").reverse().join("")) {
+        badges.push({ name: "EPIC // PALINDROME", rarity: "epic", pts: 1000 });
+        points += 1000;
+      }
+
+      // 3. Check Triple 7s
+      if (str.includes("777")) {
+        badges.push({ name: "EPIC // LUCKY 777", rarity: "epic", pts: 777 });
+        points += 777;
+      }
+
+      // 4. Check Prime Number
+      if (isPrime(num)) {
+        badges.push({ name: "RARE // PRIME NUMBER", rarity: "rare", pts: 250 });
+        points += 250;
+      }
+
+      // 5. Check Round Number (ends in 000)
+      if (num > 0 && num % 1000 === 0) {
+        badges.push({ name: "RARE // THOUSANDTH", rarity: "rare", pts: 300 });
+        points += 300;
+      }
+
+      // 6. Check Even or Odd
+      if (num % 2 === 0) {
+        badges.push({ name: "COMMON // EVEN", rarity: "common", pts: 15 });
+        points += 15;
+      } else {
+        badges.push({ name: "COMMON // ODD", rarity: "common", pts: 15 });
+        points += 15;
+      }
+
+      return { badges, points };
+    }
+
+    function forcePattern(type) {
+      if (type === "palindrome") generateRoll(123321);
+      if (type === "repdigit") generateRoll(888888);
+      if (type === "lucky7") generateRoll(420777);
+      if (type === "prime") generateRoll(7919);
+    }
+  </script>
+
+</body>
+</html>
